@@ -1,0 +1,14 @@
+## Interface: 16001, 120000, 120001, 120005, 120007, 120100
+## Title: FrogFish
+## Category: Frog Wizard
+## Notes: One-key fishing: with a fishing pole on, your Interact key casts, then clicks the bobber when it bites.
+## Version: 0.1.0
+## SavedVariables: FrogFishDB
+## IconTexture: Interface\Icons\Trade_Fishing
+## AddonCompartmentFunc: FrogFish_OnCompartmentClick
+
+Libs\FrogLib\FrogLib.xml
+ConfigKit.lua
+Core.lua
+Fishing.lua
+Config.lua
