@@ -10,8 +10,10 @@ ns.defaults = {
     autoLoot = true,  -- loot catches straight into your bags while the pole's on
     loud = true,      -- game sounds up, music and ambience down, while the line's in the water
     lure = true,      -- say when the pole has no lure on
-    range = 30,       -- how far away (yards) the bobber can be clicked, while the pole's on
+    range = 60,       -- how far away (yards) the bobber can be clicked, while the pole's on (the most)
     recast = true,    -- a bobber the game won't pick out: the key casts again (off: click it with the mouse)
+    warnFar = true,   -- say on screen when the bobber lands out of the Interact key's reach
+    warnSound = false, -- ... with a sound
     -- Game options as they were before FrogLib's CVar changed them for fishing (or FrogInteract
     -- for the interact key), so they come back even after a crash: { [cvar] = original }.
     cvars = {},
@@ -33,6 +35,11 @@ loader:RegisterEvent("PLAYER_LOGIN")
 loader:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         FrogFishDB = FrogFishDB or {}
+        -- 0.2: the reach goes to the most the game takes, for anyone still on the old default.
+        if not FrogFishDB.v2 then
+            if FrogFishDB.range == 30 then FrogFishDB.range = nil end
+            FrogFishDB.v2 = true
+        end
         FrogLib.Util.CopyDefaults(ns.defaults, FrogFishDB)
         ns.db = FrogFishDB
         -- 0.1's own record of what it changed ({ [group] = { [cvar] = original } }): put back.

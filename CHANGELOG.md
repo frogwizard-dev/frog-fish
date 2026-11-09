@@ -1,5 +1,11 @@
 # FrogFish
 
+## 0.2.0
+
+- The Interact key's reach for the bobber is now as far as it goes (60 yards, up from 30), so more casts can be clicked with the key. If you'd set your own reach, it's kept.
+- **Out of reach warning**: when your bobber lands where the Interact key can't get it, a message on screen says so, and what the key will do instead (cast again, or click it with the mouse). A sound can go with it. Both in the settings.
+- The icon over the bobber now shows more reliably: the game counted the bobber as a less important object and could leave its icon off.
+
 ## 0.1.0
 
 - First version: one-key fishing. With a fishing pole on, out of combat, your **Interact** key casts Fishing; when the bobber bites, press it again and it clicks the bobber. With an NPC or a chest in front of you it still interacts with that, and in combat it's your ordinary Interact key.

@@ -18,9 +18,13 @@ local function Build(p)
     place(UI.Help(p, "Sometimes a bobber lands where the Interact key can't reach it. A second after a "
         .. "cast, if it hasn't been picked out, the key throws a fresh line instead. Off: rest the mouse on "
         .. "the bobber and press the key.", 400), 44, 24)
+    place(UI.Checkbox(p, "Warn when the bobber lands out of reach",
+        function() return db.warnFar end, function(v) db.warnFar = v end), 26)
+    place(UI.Checkbox(p, "...with a sound", function() return db.warnSound end,
+        function(v) db.warnSound = v end), 26, 20)
     place(UI.Checkbox(p, "Say when the pole has no lure on",
         function() return db.lure end, function(v) db.lure = v end), 26)
-    place(UI.Stepper(p, "Bobber reach (yards)", 10, 40, 1, function() return db.range end,
+    place(UI.Stepper(p, "Bobber reach (yards)", 10, 60, 1, function() return db.range end,
         function(v) db.range = v end), 30)
     place(UI.Help(p, "How far away the game picks out the bobber for you. It may stop short of what's "
         .. "asked: a bobber further out still works if you rest the mouse on it and press the key. Your own "

@@ -85,6 +85,8 @@ function Fishing:PoleOptions(on)
         local values = {
             softTargetInteract = ANY,         -- Interact works on soft targets with any input
             SoftTargetIconGameObject = 1,     -- an icon over the bobber once it's targeted
+            SoftTargetIconInteract = 1,       -- (the interact icon itself)
+            SoftTargetLowPriorityIcons = 1,   -- the bobber can count as low priority, icon and all
             SoftTargetInteractRange = ns.db.range,
             -- The widest cone in front of you (0 narrow, 1 wide, 2 all round): a cast often lands
             -- well off to one side, out of the usual cone even when it's close.
@@ -165,6 +167,22 @@ function Fishing:Update(settings)
     if want ~= armed then Arm(want) end
 end
 
+-- The bobber landed beyond the Interact key's reach (or out of the game's view of what's in
+-- front of you): said on screen, once per cast, with what the key will do instead.
+function Fishing:WarnFar()
+    if not (ns.db.warnFar and channeling and self.pole) or SoftTarget() then return end
+    local text = ns.db.recast and "Bobber out of reach: press Interact to cast again"
+        or "Bobber out of reach: point at it with the mouse and press Interact"
+    if UIErrorsFrame and UIErrorsFrame.AddMessage then
+        UIErrorsFrame:AddMessage(text, 1, 0.82, 0.3, 1)
+    else
+        ns.Print(text)
+    end
+    if ns.db.warnSound then
+        pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
+    end
+end
+
 function Fishing:CheckLure()
     if not ns.db.lure then return end
     local hasLure = GetWeaponEnchantInfo()
@@ -209,7 +227,10 @@ function Fishing:Init()
             self:CheckLure()
             -- Once the bobber's had time to land: picked out (the key clicks it), or not (the key
             -- recasts, or clicks what's under the mouse).
-            C_Timer.After(SETTLE + 0.05, function() self:Update() end)
+            C_Timer.After(SETTLE + 0.05, function()
+                self:Update()
+                self:WarnFar()
+            end)
         elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
             if not IsFishing(spellID) then return end
             channeling = false
