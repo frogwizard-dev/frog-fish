@@ -1,5 +1,9 @@
 # FrogFish
 
+## 0.2.1
+
+- That long, all-round reach is only on while your line's in the water. Before, a vendor behind you or across the river could be picked out instead, and the key would talk to them rather than cast.
+
 ## 0.2.0
 
 - The Interact key's reach for the bobber is now as far as it goes (60 yards, up from 30), so more casts can be clicked with the key. If you'd set your own reach, it's kept.

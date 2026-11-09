@@ -87,13 +87,9 @@ function Fishing:PoleOptions(on)
             SoftTargetIconGameObject = 1,     -- an icon over the bobber once it's targeted
             SoftTargetIconInteract = 1,       -- (the interact icon itself)
             SoftTargetLowPriorityIcons = 1,   -- the bobber can count as low priority, icon and all
-            SoftTargetInteractRange = ns.db.range,
-            -- The widest cone in front of you (0 narrow, 1 wide, 2 all round): a cast often lands
-            -- well off to one side, out of the usual cone even when it's close.
-            SoftTargetInteractArc = 2,
-            -- The reach as a hard limit, rather than held to each object's own interaction
-            -- distance (left out where the client hasn't got this option).
-            SoftTargetInteractRangeIsHard = 1,
+            -- The long all-round reach is only for while the line's out (Loud below): with it on
+            -- all the time, an NPC behind you or across the water is picked out, and the key talks
+            -- to them instead of casting.
         }
         if ns.db.autoLoot then values.autoLootDefault = 1 end
         FrogLib.CVar.Want(ns.POLE, 20, values)
@@ -103,13 +99,24 @@ function Fishing:PoleOptions(on)
 end
 
 -- While the line's in the water: game sounds up, music and ambience down, so the splash stands out.
+-- Also while it's out: the bobber can be picked out wherever it lands, as far off as the reach
+-- setting and all round you (a cast often lands well off to one side, out of the usual cone).
 function Fishing:Loud(on)
-    if on and ns.db.loud then
-        FrogLib.CVar.Want(ns.CAST, 30, { Sound_EnableAllSound = 1, Sound_EnableSFX = 1, Sound_SFXVolume = 1,
-            Sound_MusicVolume = 0, Sound_AmbienceVolume = 0 })
-    else
+    if not on then
         FrogLib.CVar.Want(ns.CAST, 30, nil)
+        return
     end
+    local values = {
+        SoftTargetInteractRange = ns.db.range,
+        SoftTargetInteractArc = 2,            -- 0 a narrow cone, 1 wide, 2 all round
+        -- The reach as a hard limit, rather than held to each object's own interaction distance.
+        SoftTargetInteractRangeIsHard = 1,
+    }
+    if ns.db.loud then
+        values.Sound_EnableAllSound, values.Sound_EnableSFX, values.Sound_SFXVolume = 1, 1, 1
+        values.Sound_MusicVolume, values.Sound_AmbienceVolume = 0, 0
+    end
+    FrogLib.CVar.Want(ns.CAST, 30, values)
 end
 
 ------------------------------------------------------------------------------
