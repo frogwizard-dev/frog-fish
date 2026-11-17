@@ -1,5 +1,11 @@
 # FrogFish
 
+## 0.2.2
+
+- With the line out, only your bobber counts as what's in front of you: an NPC or a mailbox at a dock no longer gets the key instead.
+- What's in front of you and loot windows closing are only listened to with a pole on.
+- Shared code (FrogLib 1.12.0): see its notes for the rest of what's fixed.
+
 ## 0.2.1
 
 - That long, all-round reach is only on while your line's in the water. Before, a vendor behind you or across the river could be picked out instead, and the key would talk to them rather than cast.

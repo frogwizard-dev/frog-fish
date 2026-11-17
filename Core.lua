@@ -32,8 +32,8 @@ end
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
-loader:SetScript("OnEvent", function(_, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == ADDON then
+loader:SetScript("OnEvent", function(_, event, addonName)
+    if event == "ADDON_LOADED" and addonName == ADDON then
         FrogFishDB = FrogFishDB or {}
         -- 0.2: the reach goes to the most the game takes, for anyone still on the old default.
         if not FrogFishDB.v2 then
@@ -59,13 +59,13 @@ end)
 
 SLASH_FROGFISH1 = "/fish"
 SLASH_FROGFISH2 = "/frogfish"
-SlashCmdList.FROGFISH = function(msg)
-    msg = strtrim(msg or ""):lower()
-    if msg == "on" or msg == "off" then
-        ns.db.enabled = msg == "on"
+SlashCmdList.FROGFISH = function(text)
+    local command = strtrim(text or ""):lower()
+    if command == "on" or command == "off" then
+        ns.db.enabled = command == "on"
         ns.Refresh()
         ns.Print(ns.db.enabled and "one-key fishing on." or "one-key fishing off.")
-    elseif msg == "status" then
+    elseif command == "status" then
         ns.Fishing:Status()
     else
         ns.ToggleConfig()

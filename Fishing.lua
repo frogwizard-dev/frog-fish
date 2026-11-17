@@ -1,14 +1,9 @@
 local _, ns = ...
 
--- How one key fishes. With a fishing pole on, out of combat, the keys bound to Interact are taken
--- over (an override binding, the same kind the game's own vehicle and pet bars use) to click a
--- secure button that casts Fishing. They're handed back to Interact:
---   * while the line's out (the bobber is then the soft interact target, so Interact clicks it);
---   * while anything else is in front of you to interact with (an NPC, a chest), so the key
---     still does that;
---   * in combat, and whenever the pole comes off.
--- The game's own soft targeting finds the bobber; while the pole's on, it's set to work for every
--- input (not just gamepads) and to reach as far as a cast lands.
+-- How one key fishes: with a pole on, out of combat, the Interact keys get an override binding (the kind
+-- the game's vehicle and pet bars use) to a secure button that casts Fishing. They're Interact again while
+-- the line's out (the bobber is the soft interact target then), while anything else is in front of you, in
+-- combat, and once the pole comes off. Soft targeting is set to every input and a cast's reach meanwhile.
 
 local issecret = FrogLib.issecret
 
@@ -23,7 +18,7 @@ local ANY = (Enum.SoftTargetEnableFlags and Enum.SoftTargetEnableFlags.Any) or 3
 local LURE_EVERY = 300 -- seconds between "no lure" reminders
 
 local owner = CreateFrame("Frame") -- owns the override bindings
-local button, armed, channeling, castAt, lureSaid, keylessSaid
+local button, armed, channeling, castAt, lureWarnedAt, warnedNoKey
 local SETTLE = 1.5 -- seconds for the bobber to land and be picked out (or not) after a cast
 
 local function HasPole()
@@ -46,8 +41,20 @@ end
 -- is an object, not a unit, so "softinteract" doesn't see it: what the game last said it picked
 -- out (PLAYER_SOFT_INTERACT_CHANGED's new target) does. Hidden by the game counts as something.
 local softGUID
+local BOBBER = 35591 -- the fishing bobber's object ID
 
-local function SoftTarget()
+-- Whether the game picked out your bobber: its GUID's object ID (only that field is read: the others may be scrambled,
+-- as EllesmereUI found). Hidden by the game counts as the bobber.
+local function IsBobber(guid)
+    if issecret(guid) then return true end
+    if type(guid) ~= "string" then return false end
+    local kind, _, _, _, _, id = strsplit("-", guid)
+    return kind == "GameObject" and tonumber(id) == BOBBER
+end
+
+-- With the line out only the bobber counts (an NPC or a mailbox at a dock, picked out instead, would get the key).
+local function SoftTarget(lineOut)
+    if lineOut then return IsBobber(softGUID) end
     if issecret(softGUID) then return true end
     if type(softGUID) == "string" and softGUID ~= "" then return true end
     local ok, exists = pcall(UnitExists, "softinteract")
@@ -87,9 +94,8 @@ function Fishing:PoleOptions(on)
             SoftTargetIconGameObject = 1,     -- an icon over the bobber once it's targeted
             SoftTargetIconInteract = 1,       -- (the interact icon itself)
             SoftTargetLowPriorityIcons = 1,   -- the bobber can count as low priority, icon and all
-            -- The long all-round reach is only for while the line's out (Loud below): with it on
-            -- all the time, an NPC behind you or across the water is picked out, and the key talks
-            -- to them instead of casting.
+            -- The long all-round reach is only while the line's out (Loud below): on all the time,
+            -- an NPC behind you or across the water is picked out, and the key talks to them.
         }
         if ns.db.autoLoot then values.autoLootDefault = 1 end
         FrogLib.CVar.Want(ns.POLE, 20, values)
@@ -98,9 +104,8 @@ function Fishing:PoleOptions(on)
     end
 end
 
--- While the line's in the water: game sounds up, music and ambience down, so the splash stands out.
--- Also while it's out: the bobber can be picked out wherever it lands, as far off as the reach
--- setting and all round you (a cast often lands well off to one side, out of the usual cone).
+-- While the line's in the water: game sounds up, music and ambience down, so the splash stands out;
+-- and the bobber picked out wherever it lands, as far as the reach and all round (casts land off to a side).
 function Fishing:Loud(on)
     if not on then
         FrogLib.CVar.Want(ns.CAST, 30, nil)
@@ -132,8 +137,8 @@ local function Arm(mode)
     if not mode then return end
     local keys = InteractKeys()
     if #keys == 0 then
-        if not keylessSaid then
-            keylessSaid = true
+        if not warnedNoKey then
+            warnedNoKey = true
             ns.Print("bind the Interact key (Options > Keybindings > Targeting: Interact with Target) to fish with it.")
         end
         return
@@ -150,7 +155,7 @@ local function Arm(mode)
 end
 
 -- Works out what the keys should do now, and what game options to have (again, with `settings`:
--- they've just changed).
+-- they've changed).
 function Fishing:Update(settings)
     if not ns.db or InCombatLockdown() then return end
     local pole = ns.db.enabled and HasPole() and KnowsFishing()
@@ -159,12 +164,19 @@ function Fishing:Update(settings)
         self.pole = pole
         self:PoleOptions(pole)
         if pole then self:CheckLure() end
+        -- What's in front of you, and loot windows closing, only matter with a pole on.
+        local events = self.events
+        if events then
+            for _, event in ipairs({ "PLAYER_SOFT_INTERACT_CHANGED", "LOOT_CLOSED" }) do
+                if pole then pcall(events.RegisterEvent, events, event) else events:UnregisterEvent(event) end
+            end
+        end
+        if not pole then softGUID = nil end
     end
-    -- With the line out and the bobber where the game won't pick it out (soft targeting has rules
-    -- of its own), the key casts again (a fresh line) or, with recasting off, clicks what's under
-    -- the mouse. Not while it's still landing: the key does nothing then.
+    -- The line out and the bobber where the game won't pick it out (soft targeting has rules of its own):
+    -- the key casts again, or with recasting off clicks what's under the mouse. Nothing while it lands.
     local want
-    if pole and not SoftTarget() then
+    if pole and not SoftTarget(channeling) then
         if not channeling then
             want = "cast"
         elseif GetTime() - (castAt or 0) >= SETTLE then
@@ -177,7 +189,7 @@ end
 -- The bobber landed beyond the Interact key's reach (or out of the game's view of what's in
 -- front of you): said on screen, once per cast, with what the key will do instead.
 function Fishing:WarnFar()
-    if not (ns.db.warnFar and channeling and self.pole) or SoftTarget() then return end
+    if not (ns.db.warnFar and channeling and self.pole) or SoftTarget(true) then return end
     local text = ns.db.recast and "Bobber out of reach: press Interact to cast again"
         or "Bobber out of reach: point at it with the mouse and press Interact"
     if UIErrorsFrame and UIErrorsFrame.AddMessage then
@@ -194,8 +206,8 @@ function Fishing:CheckLure()
     if not ns.db.lure then return end
     local hasLure = GetWeaponEnchantInfo()
     if hasLure then return end
-    if lureSaid and GetTime() - lureSaid < LURE_EVERY then return end
-    lureSaid = GetTime()
+    if lureWarnedAt and GetTime() - lureWarnedAt < LURE_EVERY then return end
+    lureWarnedAt = GetTime()
     ns.Print("no lure on your pole.")
 end
 
@@ -209,18 +221,20 @@ local function IsFishing(spellID)
 end
 
 function Fishing:Init()
-    local f = CreateFrame("Frame")
+    local events = CreateFrame("Frame")
+    self.events = events -- (Update adds the soft target and loot events while a pole's on)
     for _, event in ipairs({ "PLAYER_EQUIPMENT_CHANGED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD",
-        "PLAYER_SOFT_INTERACT_CHANGED", "LOOT_CLOSED", "UPDATE_BINDINGS", "SPELLS_CHANGED" }) do
-        pcall(f.RegisterEvent, f, event)
+        "UPDATE_BINDINGS", "SPELLS_CHANGED" }) do
+        pcall(events.RegisterEvent, events, event)
     end
-    f:RegisterEvent("PLAYER_REGEN_DISABLED")
-    f:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
-    f:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
-    f:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
-        local spellID = arg3
+    local function UpdateNow() self:Update() end
+    events:RegisterEvent("PLAYER_REGEN_DISABLED")
+    events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
+    events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+    events:SetScript("OnEvent", function(_, event, ...)
+        local spellID = select(3, ...) -- the channel events' third value
         if event == "PLAYER_SOFT_INTERACT_CHANGED" then
-            softGUID = arg2 -- the new target (empty or nil: nothing)
+            softGUID = select(2, ...) -- the new target (empty or nil: nothing)
         elseif event == "PLAYER_REGEN_DISABLED" then
             -- The last moment the keys can be handed back before combat locks them.
             ClearOverrideBindings(owner)
@@ -245,7 +259,7 @@ function Fishing:Init()
         end
         self:Update()
         -- The bobber vanishing, a loot window closing: soft targets settle a moment later.
-        C_Timer.After(0.3, function() self:Update() end)
+        C_Timer.After(0.3, UpdateNow)
     end)
     self:Update()
 end
